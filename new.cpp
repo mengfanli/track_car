@@ -86,43 +86,43 @@ int main()
 		clog<<"FPS: "<<fps<<endl;
 		imshow(CANNY_WINDOW_NAME,imgROI);
 		#endif
+
+		// perspective transform
+		cv::Point2f objectivePoints[4], imagePoints[4];
+
+		// original image points.
+		imagePoints[0].x = 10.0; imagePoints[0].y = 457.0;
+		imagePoints[1].x = 395.0; imagePoints[1].y = 291.0;
+		imagePoints[2].x = 624.0; imagePoints[2].y = 291.0;
+		imagePoints[3].x = 1000.0; imagePoints[3].y = 457.0;
+	
+		// objective points of perspective image.
+		// move up the perspective image : objectivePoints.y - value .
+		// move left the perspective image : objectivePoints.x - value.
+		double moveValueX = 0.0;
+		double moveValueY = 0.0;
+	
+		objectivePoints[0].x = 46.0 + moveValueX; objectivePoints[0].y = 920.0 + moveValueY;
+		objectivePoints[1].x = 46.0 + moveValueX; objectivePoints[1].y = 100.0 + moveValueY;
+		objectivePoints[2].x = 600.0 + moveValueX; objectivePoints[2].y = 100.0 + moveValueY;
+		objectivePoints[3].x = 600.0 + moveValueX; objectivePoints[3].y = 920.0 + moveValueY;
+	
+		cv::Mat transform = cv::getPerspectiveTransform(objectivePoints, imagePoints);
+		
+		// perspective.
+		cv::warpPerspective(imgROI, imgROI, transform,
+			cv::Size(imgROI.rows, imgROI.cols),
+			cv::INTER_LINEAR| cv::WARP_INVERSE_MAP);
+
+	 	cv::imshow("perspective image", imgROI);
 		bitwise_not(imgROI,imgROI);
+
+		vector<Vec2f> lines;
 		HoughLines(imgROI,lines,1,PI/6,HOUGH_THRESHOLD);
 		//Draw the lines and judge the slope
 		for(vector<Vec2f>::const_iterator it=lines.begin();it!=lines.end();++it)
 		{
-			float rho=(*it)[0];			//First element is distance rho
-			float theta=(*it)[1];		//Second element is angle theta £¬thetaÊÇŠÈ
 
-			//Filter to remove vertical and horizontal lines,
-			//and atan(0.09) equals about 5 degrees.
-			if((theta>0.09&&theta<1.48)||(theta>1.62&&theta<3.05)) 
-			{
-				if(theta>maxRad)
-					maxRad=theta;
-				if(theta<minRad)
-					minRad=theta;
-
-				if(theta>PI/2) countRight++;
-				else countLeft++;
-				
-				#ifdef _DEBUG
-				//point of intersection of the line with first row
-				Point pt1(rho/cos(theta),0);
-				//point of intersection of the line with last row
-				Point pt2((rho-result.rows*sin(theta))/cos(theta),result.rows);
-				//Draw a line
-				line(result,pt1,pt2,Scalar(0,255,255),3,CV_AA);
-				#endif
-			}
-			else if(theta>1.48&&theta<1.62)
-			{
-				
-			}
-
-			#ifdef _DEBUG
-			clog<<"Line: ("<<rho<<","<<theta<<")\n";
-			#endif
 		}
 
 
