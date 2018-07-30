@@ -56,71 +56,75 @@ int main()
 	double t=0;
 	double fps;
 	Mat image;
+
+	// perspective transform
+	cv::Point2f objectivePoints[4], imagePoints[4];
+
+	// original image points.
+	imagePoints[0].x = 0; imagePoints[0].y = 320-1;
+	imagePoints[1].x = 120; imagePoints[1].y = 240-1;
+	imagePoints[2].x = 360; imagePoints[2].y = 240-1;
+	imagePoints[3].x = 480-1; imagePoints[3].y = 320-1;
+
+	// objective points of perspective image.
+	// move up the perspective image : objectivePoints.y - value .
+	// move left the perspective image : objectivePoints.x - value.
+	double moveValueX = 0.0;
+	double moveValueY = 0.0;
+
+	objectivePoints[0].x = 0 + moveValueX; objectivePoints[0].y = 640-1 + moveValueY;
+	objectivePoints[1].x = 0 + moveValueX; objectivePoints[1].y = 0 + moveValueY;
+	objectivePoints[2].x = 480 + moveValueX; objectivePoints[2].y = 0 + moveValueY;
+	objectivePoints[3].x = 480 + moveValueX; objectivePoints[3].y = 640-1 + moveValueY;
+
+	cv::Mat transform = cv::getPerspectiveTransform(objectivePoints, imagePoints);
+
 	while(true)
 	{
 	        t = (double)cv::getTickCount();
 		capture>>image;
 		if(image.empty())
+		{
+			clog<<"image empty"<<endl;
 			break;
+	//		return 0;
+		}
 		Mat imaget;
 		
 		//Set the ROI for the image
-		resize(image,imaget,Size(image.cols/4,image.rows/4),0,0,INTER_LINEAR);
+		resize(image,imaget,Size(480,320),0,0,INTER_LINEAR);
 		clog<<"image.rows*cols: "<<imaget.rows<<"x"<<imaget.cols<<endl;
-		Rect roi(0,image.rows/5*4,image.cols,image.rows/5);
-		//Rect roi(0,image.rows/4-1,image.cols-1,image.rows-1);
-		Mat imgROI=image(roi);
+//		Rect roi(0,image.rows/5*4,image.cols,image.rows/5);
+//		Mat imgROI=image(roi);
+		Mat imgROI=imaget;
+//		Mat imgROI=image;
 
-		
-
-		cvtColor(imgROI,imgROI,CV_RGB2GRAY);
+//		cvtColor(imgROI,imgROI,CV_RGB2GRAY);
 		imshow("gray_image",imgROI);
-		adaptiveThreshold(imgROI,imgROI,255,ADAPTIVE_THRESH_MEAN_C,THRESH_BINARY,31,2);
+//		adaptiveThreshold(imgROI,imgROI,255,ADAPTIVE_THRESH_MEAN_C,THRESH_BINARY,31,2);
 		Mat element = getStructuringElement(MORPH_RECT, Size(9,9));
-		dilate(imgROI,imgROI,element);
-		erode(imgROI,imgROI,element);
+//		dilate(imgROI,imgROI,element);
+//		erode(imgROI,imgROI,element);
 
 		#ifdef _DEBUG
 		t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
             	fps = 1.0 / t;
 		clog<<"FPS: "<<fps<<endl;
-		imshow(CANNY_WINDOW_NAME,imgROI);
+//		imshow(CANNY_WINDOW_NAME,imgROI);
 		#endif
-
-		// perspective transform
-		cv::Point2f objectivePoints[4], imagePoints[4];
-
-		// original image points.
-		imagePoints[0].x = 10.0; imagePoints[0].y = 457.0;
-		imagePoints[1].x = 395.0; imagePoints[1].y = 291.0;
-		imagePoints[2].x = 624.0; imagePoints[2].y = 291.0;
-		imagePoints[3].x = 1000.0; imagePoints[3].y = 457.0;
-	
-		// objective points of perspective image.
-		// move up the perspective image : objectivePoints.y - value .
-		// move left the perspective image : objectivePoints.x - value.
-		double moveValueX = 0.0;
-		double moveValueY = 0.0;
-	
-		objectivePoints[0].x = 46.0 + moveValueX; objectivePoints[0].y = 920.0 + moveValueY;
-		objectivePoints[1].x = 46.0 + moveValueX; objectivePoints[1].y = 100.0 + moveValueY;
-		objectivePoints[2].x = 600.0 + moveValueX; objectivePoints[2].y = 100.0 + moveValueY;
-		objectivePoints[3].x = 600.0 + moveValueX; objectivePoints[3].y = 920.0 + moveValueY;
-	
-		cv::Mat transform = cv::getPerspectiveTransform(objectivePoints, imagePoints);
-		
+		Mat imgtrans;
 		// perspective.
-		cv::warpPerspective(imgROI, imgROI, transform,
-			cv::Size(imgROI.rows, imgROI.cols),
+		cv::warpPerspective(imgROI, imgtrans, transform,
+			cv::Size(imgROI.cols, imgROI.rows*2),
 			cv::INTER_LINEAR| cv::WARP_INVERSE_MAP);
 
-	 	cv::imshow("perspective image", imgROI);
+	 	imshow("perspective image", imgtrans);
 		bitwise_not(imgROI,imgROI);
 
 		vector<Vec2f> lines;
-		HoughLines(imgROI,lines,1,PI/6,HOUGH_THRESHOLD);
+//		HoughLines(imgROI,lines,1,PI/6,HOUGH_THRESHOLD);
 		//Draw the lines and judge the slope
-		for(vector<Vec2f>::const_iterator it=lines.begin();it!=lines.end();++it)
+//		for(vector<Vec2f>::const_iterator it=lines.begin();it!=lines.end();++it)
 		{
 
 		}
