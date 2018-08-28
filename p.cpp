@@ -2,13 +2,7 @@
 #include <stdlib.h>
 #include <iostream>
 #include <vector>
-
-//#include <opencv2/highgui.hpp>
-//#include <opencv2/imgproc.hpp>
-//#include <opencv2/opencv.hpp>
 #include <highgui.h>
-//#include <imgproc.hpp>
-//#include <opencv.h>
 #include "opencv2/opencv.hpp"
 #include "GPIOlib.h"
 
@@ -16,7 +10,7 @@
 
 //Uncomment this line at run-time to skip GUI rendering
 //#define _DEBUG
-
+#define _MOVE
 using namespace cv;
 using namespace GPIO;
 using namespace std;
@@ -30,8 +24,9 @@ const int CANNY_LOWER_BOUND=50;
 const int CANNY_UPPER_BOUND=250;
 const int HOUGH_THRESHOLD=38;
 
-const double INIT_SPEED=8;
-const double SLOW_SPEED=6;
+const double INIT_SPEED=6;
+const double FAST_SPEED=9;
+const double SLOW_SPEED=4;
 
 double distanceLR;
 double speedLeft = INIT_SPEED;
@@ -72,14 +67,15 @@ int main()
 	double fps;
 	Mat image;
 
-	Size S(50,50);
-	double r = capture.get(CV_CAP_PROP_FPS);
-	write.open(outFile,-1,r,S,true);
-	if(!capture.isOpened())
-	{
-		clog<<"write open fail"<<endl;
-		return 1;
-	}
+//	Size S(50,50);
+//	double r = capture.get(CV_CAP_PROP_FPS);
+//	write.open(outFile,-1,r,S,true);
+//	if(!capture.isOpened())
+//	{
+//		clog<<"write open fail"<<endl;
+//		return 1;
+//	}
+
 	// perspective transform
 	cv::Point2f objectivePoints[4], imagePoints[4];
 
@@ -118,35 +114,32 @@ int main()
 		//Set the ROI for the image
 //		resize(image,imaget,Size(320,240),0,0,INTER_LINEAR);
 	//	clog<<"image.cols*rows: "<<imaget.cols<<"x"<<imaget.rows<<endl;
+	//	imshow("original_image",image);
 		Rect roi(0,image.rows/3*2,image.cols,image.rows/3);
 		Mat imgROI=image(roi);
 //		Mat imgROI=imaget;
 //		Mat imgROI=image;
 
 		cvtColor(imgROI,imgROI,CV_RGB2GRAY);
-		#ifdef _DEBUG
+#ifdef _DEBUG
 		imshow("gray_image",imgROI);
-		#endif
+#endif
 		adaptiveThreshold(imgROI,imgROI,255,ADAPTIVE_THRESH_MEAN_C,THRESH_BINARY,31,2);
 		Mat element = getStructuringElement(MORPH_RECT, Size(5,5));
 		dilate(imgROI,imgROI,element);
 		erode(imgROI,imgROI,element);
 
-		#ifdef _DEBUG
-//		imshow(CANNY_WINDOW_NAME,imgROI);
-		#endif
 		bitwise_not(imgROI,imgROI);
 		Mat imgtrans;
 		// perspective.
 		cv::warpPerspective(imgROI, imgtrans, transform,
-//			cv::Size(imgROI.rows*2, imgROI.cols*2),
 			cv::Size(150,150),
 			cv::INTER_LINEAR| cv::WARP_INVERSE_MAP);
 
 		vector<Vec4i> lines;
 		vector<Vec2f> linef;
 		resize(imgtrans,imgtrans,Size(50,50),0,0,INTER_LINEAR);
-		Canny(imgtrans,imgtrans,CANNY_LOWER_BOUND,CANNY_UPPER_BOUND);	
+	//	Canny(imgtrans,imgtrans,CANNY_LOWER_BOUND,CANNY_UPPER_BOUND);	
 		HoughLines(imgtrans,linef,1,PI/180,HOUGH_THRESHOLD);
 //		HoughLinesP(imgtrans,lines,1,PI/180,25,12,1);
 		Point line_p[2];
@@ -156,60 +149,77 @@ int main()
 		double rho_max,theta_max=0;
 		float rho_in=0,theta_in=0;
 		float rho_old,theta_old;
-
-      		cvtColor(imgtrans,imgtrans,CV_GRAY2RGB);
+#ifdef _DEBUG
+      	cvtColor(imgtrans,imgtrans,CV_GRAY2RGB);
 		for(int j=0;j<linef.size();j++)
 		{
 			rho=linef[j][0];
 			theta=linef[j][1];
 			clog<<"line"<<j<<" :"<<"rho="<<linef[j][0]<<"theta"<<linef[j][1]*180.0/PI<<endl;   
-		#ifdef _DEBUG
   			Point pt1(rho/cos(theta),0);
-                                //point of intersection of the line with last row
-                                Point pt2((rho-imgtrans.rows*sin(theta))/cos(theta),imgtrans.rows);
+           		 //point of intersection of the line with last row
+           		 Point pt2((rho-imgtrans.rows*sin(theta))/cos(theta),imgtrans.rows);
 			line(imgtrans,pt1,pt2,Scalar(0,255,255),1,CV_AA);
-#endif
-
 		}
+#endif
 		if(linef.size()>5||linef.size()==0)
 		{
-		
-			rho_in=rho_old;
-			theta_in=theta_old;
-			controlLeft(FORWARD,SLOW_SPEED);
-			controlRight(FORWARD,SLOW_SPEED); 
+#ifdef _MOVE
+			controlLeft(FORWARD, (int)SLOW_SPEED);
+			controlRight(FORWARD, (int)SLOW_SPEED);
+#endif
 		}
-	       	else
-		{
-			for(int i=0;i<linef.size();i++){
-				rho_in+=linef[i][0];
-				theta_in+=linef[i][1];
+		else{
+			int trust[5]={0,0,0,0,0};
+			int max_index=0;
+			double LIMIT = 0.08;//6'
+			for(int i=0;i<linef.size();i++)
+			{
+				for (int j=i+1;j<linef.size();j++){
+					if (fabs(linef[i][1]-linef[j][1]<LIMIT))
+					{
+						trust[j]+=1;
+					}
+				}
 			}
-			rho_in=rho_in/linef.size();
-			
-			theta_in=theta_in/linef.size()*180/PI;
-			
-		float kp=3;
-		float ki=0;
-		float kd=0.04;
-		int angle=0;
-		theta_in=theta_in > 90? theta_in-180:theta_in; 
-		dt = ((double)cv::getTickCount() - dt) / cv::getTickFrequency();
-		angle = theta_in*kp+theta_in*ki*dt+(theta_in-theta_old)*kd/dt;
-		theta_old=theta_in;
-		rho_old=rho_in;
-		turnTo(angle);
-		clog<<"theta_in="<<theta_in<<"turn to angle="<<angle<<endl;
-		controlLeft(FORWARD, (int)INIT_SPEED);
-		controlRight(FORWARD, (int)INIT_SPEED);
+			int tsum_temp=0;
+			for(int i=0;i<linef.size();i++)
+			{
+				if(trust[i]>tsum_temp)
+				{
+					max_index=i;
+					tsum_temp=trust[i];
+				}	
+			}
+			theta_in=linef[max_index][1];
+			theta_in=theta_in*180/PI;
 
-		{
-			#ifdef _DEBUG
- 
-	 		imshow("perspective image", imgtrans);
-			write.write(imgtrans);
-			#endif
+			float kp=2;
+			float ki=0;
+			float kd=0.04;
+			int angle=0;
+			theta_in=theta_in > 90? theta_in-180:theta_in; 
+			dt = ((double)cv::getTickCount() - dt) / cv::getTickFrequency();
+			angle = theta_in*kp+theta_in*ki*dt+(theta_in-theta_old)*kd/dt;
+			theta_old=theta_in;
+			rho_old=rho_in;
+			turnTo(angle);
+			clog<<"theta_in="<<theta_in<<"turn to angle="<<angle<<endl;
+#ifdef _MOVE
+			if(angle<10)
+			{
+			controlLeft(FORWARD, (int)FAST_SPEED);
+			controlRight(FORWARD, (int)FAST_SPEED);
+			}
+			else{
+			controlLeft(FORWARD, (int)INIT_SPEED);
+			controlRight(FORWARD, (int)INIT_SPEED);
+			}
+#endif
 		}
+#ifdef _DEBUG
+ 		imshow("perspective image", imgtrans);
+#endif
 
 		t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
             	fps = 1.0 / t;
@@ -217,7 +227,6 @@ int main()
 
 
 		waitKey(1);
-	}
 	}
 	return 0;
 }
