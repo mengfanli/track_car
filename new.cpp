@@ -16,22 +16,22 @@
 
 //Uncomment this line at run-time to skip GUI rendering
 //#define _DEBUG
-
+#define _RUNNING
 using namespace cv;
 using namespace GPIO;
 using namespace std;
 
-const string CAM_PATH="/dev/video1";
+const string CAM_PATH="/dev/video0";
 const string outFile = "/home/pi/meng/recoder.avi";
 const string MAIN_WINDOW_NAME="Processed Image";
-const string CANNY_WINDOW_NAME="Canny";
+const string erode_WINDOW_NAME="erode";
 
 const int CANNY_LOWER_BOUND=50;
 const int CANNY_UPPER_BOUND=250;
 const int HOUGH_THRESHOLD=38;
 
-const double INIT_SPEED=8;
-const double SLOW_SPEED=6;
+const double INIT_SPEED=15;
+const double SLOW_SPEED=5;
 
 double distanceLR;
 double speedLeft = INIT_SPEED;
@@ -102,7 +102,8 @@ int main()
 
 	cv::Mat transform = cv::getPerspectiveTransform(objectivePoints, imagePoints);
 	
-	double dt = (double)cv::getTickCount();
+	double dt =0; 
+	double old_t= ((double)cv::getTickCount()) / cv::getTickFrequency();
 	while(true)
 	{
 	        t = (double)cv::getTickCount();
@@ -133,7 +134,7 @@ int main()
 		erode(imgROI,imgROI,element);
 
 		#ifdef _DEBUG
-//		imshow(CANNY_WINDOW_NAME,imgROI);
+		imshow(erode_WINDOW_NAME,imgROI);
 		#endif
 		bitwise_not(imgROI,imgROI);
 		Mat imgtrans;
@@ -163,7 +164,7 @@ int main()
 			rho=linef[j][0];
 			theta=linef[j][1];
 			clog<<"line"<<j<<" :"<<"rho="<<linef[j][0]<<"theta"<<linef[j][1]*180.0/PI<<endl;   
-		#ifdef _DEBUG
+#ifdef _DEBUG
   			Point pt1(rho/cos(theta),0);
                                 //point of intersection of the line with last row
                                 Point pt2((rho-imgtrans.rows*sin(theta))/cos(theta),imgtrans.rows);
@@ -171,53 +172,63 @@ int main()
 #endif
 
 		}
+#ifdef _DEBUG
+ 
+	 	imshow("perspective image", imgtrans);
+		write.write(imgtrans);
+#endif
 		if(linef.size()>5||linef.size()==0)
 		{
 		
 			rho_in=rho_old;
 			theta_in=theta_old;
+#ifdef _RUNNING
 			controlLeft(FORWARD,SLOW_SPEED);
 			controlRight(FORWARD,SLOW_SPEED); 
+#endif
 		}
 	       	else
 		{
 			for(int i=0;i<linef.size();i++){
 				rho_in+=linef[i][0];
+			linef[i][1]=linef[i][1]*180/PI;
+			linef[i][1]=linef[i][1] > 90? linef[i][1]-180:linef[i][1]; 
 				theta_in+=linef[i][1];
 			}
 			rho_in=rho_in/linef.size();
 			
-			theta_in=theta_in/linef.size()*180/PI;
+			theta_in=theta_in/linef.size();
 			
 		float kp=3;
 		float ki=0;
-		float kd=0.04;
+		float kd=0.10;//1/dt=30
 		int angle=0;
-		theta_in=theta_in > 90? theta_in-180:theta_in; 
-		dt = ((double)cv::getTickCount() - dt) / cv::getTickFrequency();
+		//theta_in=theta_in > 90? theta_in-180:theta_in; 
+		dt = ((double)cv::getTickCount()) / cv::getTickFrequency()-old_t;
+		old_t=((double)cv::getTickCount()) / cv::getTickFrequency();
+		//dt = ((double)cv::getTickCount()) / cv::getTickFrequency();
+//		clog<<"dtickc: "<<(double)cv::getTickFrequency()<<endl;
+//		clog<<"dt: "<<dt<<endl;
 		angle = theta_in*kp+theta_in*ki*dt+(theta_in-theta_old)*kd/dt;
 		theta_old=theta_in;
 		rho_old=rho_in;
+#ifdef _RUNNING
 		turnTo(angle);
+#endif
 		clog<<"theta_in="<<theta_in<<"turn to angle="<<angle<<endl;
+#ifdef _RUNNING
 		controlLeft(FORWARD, (int)INIT_SPEED);
 		controlRight(FORWARD, (int)INIT_SPEED);
-
-		{
-			#ifdef _DEBUG
- 
-	 		imshow("perspective image", imgtrans);
-			write.write(imgtrans);
-			#endif
-		}
+#endif
 
 		t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
             	fps = 1.0 / t;
 		clog<<"FPS: "<<fps<<endl;
 
-
+		}
+#ifdef _DEBUG
 		waitKey(1);
-	}
+#endif
 	}
 	return 0;
 }
