@@ -190,28 +190,31 @@ int main()
 	       	else
 		{
 			float temp;
-			int label_list[5]={0,-1,-1,-1,-1,-1};
+			int label_list[5]={0,-1,-1,-1,-1};
 			int label_id=1;
 			int label_index=1;
+			float S_line_rho[5]={0,0,0,0,0};
+			float S_line_theta[5]={0,0,0,0,0};
 			for(int i=0;i<linef.size();i++){
-				linef.[i][0]=abs(linef.[i][0];
+				linef[i][0]=abs(linef[i][0]);
 			}
 			for(int i=0;i<linef.size();i++){
 				for(int j=i;j<linef.size();j++){
-					if(linef.[i][0]<linef.[j][0])
+					if(linef[i][0]<linef[j][0])
 					{
-						temp=linef.[i][0];
-						linef.[i][0]=linef.[j][0];
-						linef.[j][0]=temp;
-						temp=linef.[i][1];
-						linef.[i][1]=linef.[j][1];
-						linef.[j][1]=temp;
+						temp=linef[i][0];
+						linef[i][0]=linef[j][0];
+						linef[j][0]=temp;
+						temp=linef[i][1];
+						linef[i][1]=linef[j][1];
+						linef[j][1]=temp;
 					}
 				}	
 			
 			}
+			label_list[0]=0;
 			for(int i=0;i<linef.size()-1;i++){
-				if(linef.[i][0]-linef.[i+1][0]<ONELINE_THRESHOLD){
+				if(linef[i][0]-linef[i+1][0]<ONELINE_THRESHOLD){
 				//	label_list[i+1]=label_list[i];
 					label_id++;
 				}
@@ -220,20 +223,21 @@ int main()
 					label_list[label_index++]=label_id;
 				}
 			}
-			for(int i=0;i<=label_index;i++){
-				for(j=label_list[i];j<label_list[i+1];j++)
+			label_list[label_index]=linef.size();
+			//if(label_index>2){
+			clog<<"label_index ="<<label_index<<endl;
+			//}
+			for(int i=0;i<label_index;i++){
+				for(int j=label_list[i];j<label_list[i+1];j++)
 				{
 					S_line_rho[i]+=linef[j][0];
+					linef[j][1]=linef[j][1]*180/PI;
+					linef[j][1]=linef[j][1] > 90? linef[j][1]-180:linef[j][1]; 
 					S_line_theta[i]+=linef[j][1];
 				}
 				S_line_rho[i]/=(label_list[i+1]-label_list[i]);
-				S_line_rho[i]/=(label_list[i+1]-label_list[i]);
-			}
-			for(int i=0;i<linef.size();i++){
-				rho_in+=linef[i][0];
-			linef[i][1]=linef[i][1]*180/PI;
-			linef[i][1]=linef[i][1] > 90? linef[i][1]-180:linef[i][1]; 
-				theta_in+=linef[i][1];
+				S_line_theta[i]/=(label_list[i+1]-label_list[i]);
+				theta_in+=S_line_theta[i];
 			}
 			rho_in=rho_in/linef.size();
 			
