@@ -29,7 +29,7 @@ const string erode_WINDOW_NAME="erode";
 const int CANNY_LOWER_BOUND=50;
 const int CANNY_UPPER_BOUND=250;
 const int HOUGH_THRESHOLD=38;
-
+const int ONELINE_THRESHOLD=5;
 const double INIT_SPEED=15;
 const double SLOW_SPEED=5;
 
@@ -189,6 +189,46 @@ int main()
 		}
 	       	else
 		{
+			float temp;
+			int label_list[5]={0,-1,-1,-1,-1,-1};
+			int label_id=1;
+			int label_index=1;
+			for(int i=0;i<linef.size();i++){
+				linef.[i][0]=abs(linef.[i][0];
+			}
+			for(int i=0;i<linef.size();i++){
+				for(int j=i;j<linef.size();j++){
+					if(linef.[i][0]<linef.[j][0])
+					{
+						temp=linef.[i][0];
+						linef.[i][0]=linef.[j][0];
+						linef.[j][0]=temp;
+						temp=linef.[i][1];
+						linef.[i][1]=linef.[j][1];
+						linef.[j][1]=temp;
+					}
+				}	
+			
+			}
+			for(int i=0;i<linef.size()-1;i++){
+				if(linef.[i][0]-linef.[i+1][0]<ONELINE_THRESHOLD){
+				//	label_list[i+1]=label_list[i];
+					label_id++;
+				}
+				else{
+				//	label_list[i+1]=label_id++;
+					label_list[label_index++]=label_id;
+				}
+			}
+			for(int i=0;i<=label_index;i++){
+				for(j=label_list[i];j<label_list[i+1];j++)
+				{
+					S_line_rho[i]+=linef[j][0];
+					S_line_theta[i]+=linef[j][1];
+				}
+				S_line_rho[i]/=(label_list[i+1]-label_list[i]);
+				S_line_rho[i]/=(label_list[i+1]-label_list[i]);
+			}
 			for(int i=0;i<linef.size();i++){
 				rho_in+=linef[i][0];
 			linef[i][1]=linef[i][1]*180/PI;
@@ -199,7 +239,7 @@ int main()
 			
 			theta_in=theta_in/linef.size();
 			
-		float kp=3;
+		float kp=2;
 		float ki=0;
 		float kd=0.10;//1/dt=30
 		int angle=0;
