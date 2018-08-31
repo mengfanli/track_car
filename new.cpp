@@ -30,6 +30,7 @@ const int CANNY_LOWER_BOUND=50;
 const int CANNY_UPPER_BOUND=250;
 const int HOUGH_THRESHOLD=38;
 const int ONELINE_THRESHOLD=5;
+const int ANGLE_THRESHOLD=13;
 const double INIT_SPEED=15;
 const double SLOW_SPEED=5;
 
@@ -220,7 +221,7 @@ int main()
 				}
 				else{
 				//	label_list[i+1]=label_id++;
-					label_list[label_index++]=label_id;
+					label_list[label_index++]=label_id++;
 				}
 			}
 			label_list[label_index]=linef.size();
@@ -239,9 +240,9 @@ int main()
 				S_line_theta[i]/=(label_list[i+1]-label_list[i]);
 				theta_in+=S_line_theta[i];
 			}
-			rho_in=rho_in/linef.size();
+			rho_in=rho_in/label_index;
 			
-			theta_in=theta_in/linef.size();
+			theta_in=theta_in/label_index;
 			
 		float kp=2;
 		float ki=0;
@@ -254,6 +255,7 @@ int main()
 //		clog<<"dtickc: "<<(double)cv::getTickFrequency()<<endl;
 //		clog<<"dt: "<<dt<<endl;
 		angle = theta_in*kp+theta_in*ki*dt+(theta_in-theta_old)*kd/dt;
+		angle = abs(angle)>ANGLE_THRESHOLD?(angle>0?ANGLE_THRESHOLD:-ANGLE_THRESHOLD):angle;
 		theta_old=theta_in;
 		rho_old=rho_in;
 #ifdef _RUNNING
