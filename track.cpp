@@ -95,7 +95,7 @@ int main()
 
 	double dt =0;
 	double old_t= ((double)cv::getTickCount()) / cv::getTickFrequency();
-	double Integral =0；
+	double Integral =0;
 	while(true)
 	{
 	        t = (double)cv::getTickCount();
